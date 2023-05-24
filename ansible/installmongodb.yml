@@ -1,0 +1,64 @@
+---
+- hosts: machine
+  become: yes
+
+  tasks:
+  - name: adding mongo to repo
+    ansible.builtin.yum_repository:
+      name: mongodb-org
+      description: mongodb YUM repo
+      baseurl: https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/6.0/x86_64/
+      gpgcheck: yes
+      enabled: yes
+      gpgkey: https://www.mongodb.org/static/pgp/server-6.0.asc 
+ 
+  - name: install mongodb-org
+    yum: 
+      name: mongodb-org
+      state: present
+
+  - name: start mongo
+    service: 
+      name: mongod
+      state: started
+      enabled: yes
+
+  - name: create root user 
+    shell: |
+      mongosh --eval 'use admin' --eval 'db.createUser( { user: "v1tor", pwd: "randompasswd123", roles: [{ role: "root", db: "admin" }] })'
+  
+  - name: remove net config
+    lineinfile:
+      path: /etc/mongod.conf
+      state: absent
+      regexp: 'net:' 
+
+  - name: remove port configuration
+    lineinfile:
+      path: /etc/mongod.conf  
+      state: absent
+      regexp: 'port: 27017' 
+      
+  - name: remove bindIp
+    lineinfile:
+      path: /etc/mongod.conf
+      state: absent
+      regexp: 'bindIp: 127.0.0.1'
+
+  - name: adding net config
+    blockinfile:
+      path: /etc/mongod.conf
+      backup: yes
+      block: |
+        net:
+          port: 27017
+          bindIp: 0.0.0.0
+        
+        security:
+          authorization: "enabled"
+
+  - name: restart mongo
+    service:
+      name: mongod
+      state: restarted
+      enabled: yes

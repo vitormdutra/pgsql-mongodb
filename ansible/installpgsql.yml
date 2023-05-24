@@ -1,0 +1,53 @@
+---
+- hosts: machine
+  become: yes
+
+  tasks:
+  
+  - name: install 
+    yum:
+      name: gnupg2, wget, vim, tar, zlib, openssl
+      state: latest
+
+  - name: install pgsql repo
+    command: dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+
+  - name: disable pgsql model
+    command: yum -qy module disable postgresql
+
+  - name: install pgsql
+    yum:
+      name: postgresql14, postgresql14-server, postgresql14-libs.x86_64, postgresql14-contrib.x86_64
+      state: present
+
+  - name: init pgsqldb
+    command: /usr/pgsql-14/bin/postgresql-14-setup initdb
+
+  - name: start postgres
+    service:
+      name: postgresql-14
+      state: started
+      enabled: yes
+
+  - name: enable pgsql
+    command: systemctl enable postgresql-14
+
+  - name: adding pgsql config
+    blockinfile:
+      path: /var/lib/pgsql/14/data/postgresql.conf
+      backup: yes
+      block: |
+        listen_addresses = '*'
+
+  - name: adding pg_hba config
+    blockinfile:
+      path: /var/lib/pgsql/14/data/pg_hba.conf
+      backup: yes
+      block: |
+        host    all             all             0.0.0.0/0               md5
+
+  - name: restart pgsql
+    service:
+      name: postgresql-14
+      state: restarted
+      enabled: yes
